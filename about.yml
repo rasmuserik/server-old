@@ -1,0 +1,9 @@
+name: server
+title: API Server
+desc: Various services on solsort.com
+html:
+  body: <button onclick="process.exit()">exit</button>
+package:
+  main: index.html
+  scripts:
+    start: reputil build; nodewebkit

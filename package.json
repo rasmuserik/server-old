@@ -1,0 +1,20 @@
+{
+  "version": "0.0.0",
+  "name": "server",
+  "description": "Various services on solsort.com",
+  "authors": [
+    "Rasmus Erik Voel Jensen (solsort.com)"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rasmuserik/server.git"
+  },
+  "dependencies": {
+    "nodewebkit": "~0.8.5",
+    "reputil": "~0.1.1"
+  },
+  "main": "index.html",
+  "scripts": {
+    "start": "reputil build; nodewebkit"
+  }
+}
