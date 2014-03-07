@@ -1,0 +1,12 @@
+{
+  "name": "server",
+  "version": "0.0.0",
+  "description": "Various services on solsort.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rasmuserik/server.git"
+  },
+  "dependencies": {
+    "localforage": "*"
+  }
+}
