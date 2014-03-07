@@ -18,7 +18,7 @@ fs = require "fs"
 child_process = require "child_process"
 logStream = undefined
 logFileName = undefined
-logToFile = (args...) ->
+logToFile = (arr, cb) ->
   now = (new Date()).toISOString()
   name = "../logs/log-#{now.slice(0,10)}.log"
   if name != logFileName
@@ -29,20 +29,21 @@ logToFile = (args...) ->
       logStream.end()
     logStream = fs.createWriteStream name, {flags : "a"}
     logFileName = name
-  logStream.write "#{JSON.stringify [now].concat args...}\n"
+  logStream.write "#{JSON.stringify [now].concat arr}\n", "utf8", cb
 
 
 # {{{1 server
 
 routes =
   api:
+    err: -> throw "error"
     log: (req, res) ->
       data = ""
       req.setEncoding "utf8"
       req.on "data", (chunk) ->
         data += chunk
       req.on "end", ->
-        logToFile req.url, req.headers, data
+        logToFile [req.url, req.headers, data]
         res.writeHead 200,
           connection: "keep-alive"
         res.end "ok"
@@ -51,6 +52,7 @@ port = process.env.API_PORT || 4444
 
 http = require "http"
 server = http.createServer (req, res) ->
+  logToFile [req.url, req.headers]
   console.log req, res
   route = routes
   for part in req.url.split("/").filter((a)->a)
@@ -59,12 +61,17 @@ server = http.createServer (req, res) ->
       return route(req, res)
     if typeof route == "undefined"
       res.writeHead 404, {}
-      res.end ""
+      res.end "404 not found"
       return
 
 server.listen port, "localhost"
 
 onReady ->
-  logToFile "server started"
+  logToFile ["server started"]
   console.log "serving on port #{port}"
 
+quit = ->
+  process.exit(1)
+
+process.on "uncaughtException", window.onerror = (args...) ->
+  logToFile ["error occured", String(args)], quit
