@@ -36,7 +36,6 @@ logToFile = (arr, cb) ->
 
 routes =
   api:
-    err: -> throw "error"
     log: (req, res) ->
       data = ""
       req.setEncoding "utf8"
@@ -63,6 +62,8 @@ server = http.createServer (req, res) ->
       res.writeHead 404, {}
       res.end "404 not found"
       return
+   res.writeHead 404, {}
+   res.end "404 not found"
 
 server.listen port, "localhost"
 
