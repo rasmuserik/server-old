@@ -7,7 +7,7 @@ predicates that can be optimised away by uglifyjs
 
     if typeof isNodeJs == "undefined" or typeof runTest == "undefined" then do ->
       root = if typeof window == "undefined" then global else window
-      root.isNodeJs = (typeof window == "undefined") if typeof isNodeJs == "undefined"
+      root.isNodeJs = (typeof process != "undefined") if typeof isNodeJs == "undefined"
       root.isPhoneGap = typeof document.ondeviceready != "undefined" if typeof isPhoneGap == "undefined"
       root.runTest = true if typeof runTest == "undefined"
 
@@ -23,21 +23,65 @@ execute main
       else
         if document.readystate != "complete" then fn() else setTimeout (-> onReady fn), 17 
 
-# Actual code
+# logging
 
+    fs = require "fs"
+    child_process = require "child_process"
+    logStream = undefined
+    logFileName = undefined
+    logToFile = (args...) ->
+      now = (new Date()).toISOString()
+      name = "../logs/log-#{now.slice(0,10)}.log"
+      if name != logFileName
+        if logStream
+          oldfile = logFileName
+          logStream.on "close", ->
+            child_process.exec "xz #{oldfile}"
+          logStream.end()
+        logStream = fs.createWriteStream name, {flags : "a"}
+        logFileName = name
+      logStream.write "#{JSON.stringify [now].concat args...}\n"
+    
+    
+
+# server
+
+    
+    routes =
+      api:
+        log: (req, res) ->
+          data = ""
+          req.setEncoding "utf8"
+          console.log "HERE1"
+          req.on "data", (chunk) ->
+            console.log "chunk", chunk
+            data += chunk
+          req.on "end", ->
+            logToFile req.url, req.headers, data
+            res.writeHead 200,
+              connection: "keep-alive"
+            res.end "ok"
+    
     
     port = process.env.API_PORT || 4444
     
     http = require "http"
     server = http.createServer (req, res) ->
-      console.log req
-      res.writeHead 200,
-        "Content-Type": "text/plain"
-      res.end "helo"
+      console.log req, res
+      route = routes
+      for part in req.url.split("/").filter((a)->a)
+        route = route[part]
+        if typeof route == "function"
+          return route(req, res)
+        if typeof route == "undefined"
+          res.writeHead 404, {}
+          res.end ""
+          return
     
     server.listen port, "localhost"
     
     onReady ->
+      logToFile "server started"
       console.log "serving on port #{port}"
     
     
