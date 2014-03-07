@@ -3,6 +3,8 @@ title: API Server
 desc: Various services on solsort.com
 html:
   body: <button onclick="process.exit()">restart</button>
+  js:
+    - bower_components/localforage/dist/localforage.min.js
 package:
   main: index.html
   scripts:

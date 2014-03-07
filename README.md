@@ -49,33 +49,33 @@ execute main
     
     routes =
       api:
-        err: -> throw "error"
-        log: (req, res) ->
-          data = ""
-          req.setEncoding "utf8"
-          req.on "data", (chunk) ->
-            data += chunk
-          req.on "end", ->
-            logToFile [req.url, req.headers, data]
-            res.writeHead 200,
-              connection: "keep-alive"
-            res.end "ok"
+        log: (req, res, data) ->
+          logToFile [req.url, req.headers, data]
+          res.writeHead 200,
+            connection: "keep-alive"
+          res.end "ok"
     
     port = process.env.API_PORT || 4444
     
     http = require "http"
     server = http.createServer (req, res) ->
       logToFile [req.url, req.headers]
-      console.log req, res
-      route = routes
-      for part in req.url.split("/").filter((a)->a)
-        route = route[part]
-        if typeof route == "function"
-          return route(req, res)
-        if typeof route == "undefined"
-          res.writeHead 404, {}
-          res.end "404 not found"
-          return
+      data = ""
+      req.setEncoding "ascii"
+      req.on "data", (chunk) ->
+        data += chunk
+      req.on "end", ->
+        route = routes
+        for part in req.url.split("/").filter((a)->a)
+          route = route[part]
+          if typeof route == "function"
+            return route(req, res, data)
+          if typeof route == "undefined"
+            res.writeHead 404, {}
+            res.end "404 not found"
+            return
+        res.writeHead 404, {}
+        res.end "404 not found"
     
     server.listen port, "localhost"
     
@@ -88,6 +88,62 @@ execute main
     
     process.on "uncaughtException", window.onerror = (args...) ->
       logToFile ["error occured", String(args)], quit
+
+# keyval store
+
+    
+    keyvalListeners = {}
+    stopListen = (listener) ->
+      for keyval in listener.listen
+        keyvalListeners[keyval] = keyvalListeners.filter((listener2) -> listener2 != listener)
+    
+    routes.api.keyval =
+      set: (req, res, data) ->
+        urlparts = req.url.split "/"
+        key = urlparts[urlparts.length - 1]
+        data = JSON.parse data
+        return res.end "not an object" if !data || typeof data != "object"
+        localforage.getItem key, (val) ->
+          return res.end JSON.stringify val if val && val.version && data.version != val.version
+          data.version = Date.now()
+          localforage.setItem key, data, ->
+            res.end String(data.version)
+          if keyvalListeners[key]
+            listeners = keyvalListeners[key]
+            for listener in listeners
+              listener.res.end "[#{JSON.stringify key},#{JSON.stringify data}]"
+    
+      get: (req, res, data) ->
+        urlparts = req.url.split "/"
+        key = urlparts[urlparts.length - 1]
+        localforage.getItem key, (val) ->
+          return res.end JSON.stringify(val)
+    
+      subscribe: (req, res, data) ->
+        res.setTimeout 0
+        data = JSON.parse data
+        keys = Object.keys data
+        listener =
+          listen: keys
+          res: res
+        for key in keys
+          keyvalListeners[key] ?= []
+          keyvalListeners[key].push listener
+    
+        res.on "finish", ->
+          stopListen listener
+    
+        subscribe = () ->
+          if keys.length
+            key = keys.pop()
+            console.log key
+            localforage.getItem key, (val) ->
+              if val.version != data[key]
+                listener.res.end "[#{JSON.stringify key},#{JSON.stringify val}]"
+              else
+                subscribe()
+        subscribe()
+    
     
 
 ----
