@@ -50,7 +50,11 @@ execute main
     routes =
       api:
         log: (req, res, data) ->
-          logToFile [req.url, req.headers, data]
+          logToFile
+            url: req.url
+            headers: req.headers
+            remoteAddress: req.connection.remoteAddress
+            logData: data
           res.writeHead 200,
             connection: "keep-alive"
           res.end "ok"

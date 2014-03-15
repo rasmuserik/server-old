@@ -70,7 +70,12 @@
   routes = {
     api: {
       log: function(req, res, data) {
-        logToFile([req.url, req.headers, data]);
+        logToFile({
+          url: req.url,
+          headers: req.headers,
+          remoteAddress: req.connection.remoteAddress,
+          logData: data
+        });
         res.writeHead(200, {
           connection: "keep-alive"
         });
